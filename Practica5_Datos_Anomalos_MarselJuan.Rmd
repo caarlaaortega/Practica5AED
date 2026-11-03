@@ -134,8 +134,20 @@ Si ahora visualizamos el dataframe, podemos ver que efectivamente estas observac
   * Emplea después la función `na.omit` para quedarnos solo con las filas con datos completos en un nuevo data frame `clean_iris`.
 
 ```{r Solucion ejercicio 3, include=TRUE, echo=TRUE, eval=TRUE, results=TRUE}
+# Calculamos el número de observaciones completas
+num_obs_completas <- sum(complete.cases(dirty_iris))
+# Y su porcentaje:
+frac_obs_completas <- num_obs_completas/nrow(dirty_iris)
+cat('\nNúmero de observaciones dirty:', nrow(dirty_iris))
+
+# Usamos la función na.omit() para obtener un dataframe limpio en el que se han 
+# eliminado los datos faltantes.
+clean_iris <- na.omit(dirty_iris)
+cat('\nNúmero de observaciones clean:', nrow(clean_iris))
 
 ```
+Aplicando la función complete.cases se cuenta con únicamente 92 muestras completas, sin valores faltantes, que equivale a un 61.33 % de los datos.
+Tras haber aplicado la función na.omit nos hemos quedado con un dataframe de 92 observaciones, reduciéndose alrededor de un 40% el número de muestras. 
 
 # Detección de outliers univariante
 
