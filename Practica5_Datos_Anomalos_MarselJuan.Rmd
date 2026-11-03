@@ -241,14 +241,18 @@ Escribe una función que detecte los outliers de un vector $x$ para cada uno de 
   * **Percentiles** `reglapercentil(x)`: Cualquier valor que esté fuera del rango del percentil 5% y 95% se puede considerar como atípico. Usa la función `quantile` para calcular los percentiles.
 
 ```{r , include = FALSE}
+# Las funciones programadas devuelven un vector lógico de valores, donde se 
+# indicará con un TRUE aquellas posiciones que son detectadas para cada regla 
+# como outliers:
+
 # Regla 3 sigma
 reglasigma <- function(x) {
-  x[!is.na & (abs(x-mean(x, na.rm = TRUE))>3*sd(x, na.rm = TRUE))]
+  abs(x-mean(x, na.rm = TRUE))>3*sd(x, na.rm = TRUE)
 }
 
 # Identificador Hampel
 reglahampel <- function(x) {
-  x[!is.na & (abs(x-median(x, na.rm = TRUE)) > 3*mad(x, na.rm = TRUE))]
+  abs(x-median(x, na.rm = TRUE)) > 3*mad(x, na.rm = TRUE)
 }
 
 # Regla boxplot
@@ -256,15 +260,13 @@ reglaboxplot <- function(x) {
   IQR <- quantile(x, 0.75, na.rm = TRUE) - quantile(x, 0.25, na.rm = TRUE)
   up <- quantile(x, 0.75, na.rm = TRUE) + 1.5*IQR
   low <- quantile(x, 0.25, na.rm = TRUE) - 1.5*IQR
-  x[!is.na(x) & (x < low | x > up)]
+  (x < low | x > up)
 }
 
 # Regla percentiles
 reglapercentil <- function(x){
-  x[!is.na & (x<quantile(x, 0.05, na.rm = TRUE)) | x>quantile(x, 0.95, na.rm = TRUE)]
+  (x<quantile(x, 0.05, na.rm = TRUE)) | x>quantile(x, 0.95, na.rm = TRUE)
 }
-
-
 ```
 
 
@@ -274,10 +276,31 @@ Utiliza la función `mutate` y `across` para identificar los outliers en la vari
 Nota: podría extenderse la aplicación a todas las variables numéricas usando también `mutate`, `across` y `where`. 
 
 ```{r Solucion ejercicio 6, include=TRUE, echo=TRUE, eval=TRUE, results=TRUE}
+# Agrupamos todas las reglas de detección de outliers en una lista:
+metodos <- list(
+  sigma = \(x) x %in% reglasigma(x),
+  hampel = \(x) x %in% reglahampel(x),
+  boxplot = \(x) x %in% reglaboxplot(x),
+  percentil = \(x) x %in% reglapercentil(x)
+)
 
+# Y usamos mutate y across para aplicar los métodos sobre estos; 
+# lo aplicaremos sobre el dataframe de valores sucios (dirty)
+dirty_iris <- dirty_iris %>%
+  mutate(
+    across(
+      Petal.Length,
+      metodos,
+      .names = "out_{.fn}"
+    )
+  )
 
+head(dirty_iris, 6)
 
 ```
+--------------------------------------------------------------------------------
+La razón por la que se ha aplicado sobre los datos brutos (dirty_iris) es por que la obtención de clean_data se ha basado principalmente en eliminar todos aquellos datos especiales, con lo cual se han perdido muchas observaciones del dataframe inicial. A la hora de hacer procesados posteriores de los datos, el tamaño de la muestra es muy importante para poder contar con estadísticos de mayor significancia. Por esta razón, durante el análisis exploratorio inicial, es necesario estudiar cada uno de los datos anómalos para tomar decisiones respecto a qué hacer con ellos, y evaluarlos. En definitiva, se trata de una forma menos agresiva de abordar la presencia de inconsistencias
+-------------------------------------------------------------------------------
 
 ## Ejercicio 7: Comparativa de los métodos de detección de outliers
 
