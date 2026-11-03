@@ -79,6 +79,7 @@ Inspecciona visualmente los valores del conjunto de datos (`View`) y ordena de m
 # Medidas con valores faltantes, longitudes negativas y cero
 View(dirty_iris)
 ```
+--------------------------------------------------------------------------------
 A la vista de los datos podemos observar algunas inconsistencias: 
 
 -  Las observaciones 28 y 125 de sepal.length (longitud del sépalo) presentan valores muy elevados respecto a resto de observaciones, de 73.0 y 49.0, respectivamente - cuando el siguiente valor es de 7.9. 
@@ -90,8 +91,8 @@ A la vista de los datos podemos observar algunas inconsistencias:
 - Finalmente, la observación 86 presenta una amplitud del pétalo infinita, lo cual es también imposible. 
 
 Además de contar con datos con valores que no son coherentes (negativos, ceros o infinitos), o que están muy alejados de la distribución de la variable, también se cuenta con datos faltantes (NA).
+--------------------------------------------------------------------------------
 
-- 
 
 ## Ejercicio 2: Valores especiales
 
@@ -125,8 +126,9 @@ dirty_iris <- dirty_iris %>%
 
 View(dirty_iris)
 ```
+--------------------------------------------------------------------------------
 Si ahora visualizamos el dataframe, podemos ver que efectivamente estas observaciones que tenían valores especiales, como infinitos, 0 o valores negativos, ya no están, y han sido sustituidos por NA. A continuación, será imperativo que tratemos estos valores perdidos para poder hacer un análisis riguroso. 
-
+--------------------------------------------------------------------------------
 
 ## Ejercicio 3: Valores perdidos y observaciones completas
 
@@ -146,8 +148,11 @@ clean_iris <- na.omit(dirty_iris)
 cat('\nNúmero de observaciones clean:', nrow(clean_iris))
 
 ```
+--------------------------------------------------------------------------------
 Aplicando la función complete.cases se cuenta con únicamente 92 muestras completas, sin valores faltantes, que equivale a un 61.33 % de los datos.
 Tras haber aplicado la función na.omit nos hemos quedado con un dataframe de 92 observaciones, reduciéndose alrededor de un 40% el número de muestras. 
+--------------------------------------------------------------------------------
+
 
 # Detección de outliers univariante
 
@@ -167,9 +172,60 @@ Hazlo para el data frame con observaciones completas `clean_iris` (que no tiene 
   * Compara los resultados para los dos conjuntos en la variable `Petal.Length`.
 
 ```{r , include = TRUE}
+# Escribimos una función para el cálculo de desviación mediana absoluta de la 
+# media (MADM)
+madm <- function(x){
+  1.4826*median(abs(x-median(x, na.rm = TRUE)), na.rm = TRUE)
+}
+
+# Para dirty_iris:
+dirty_iris %>% summarise(
+  across(where(is.numeric),
+         list(
+           media = ~mean(.x, na.rm = TRUE),
+           desv_tipica = ~sd(.x, na.rm = TRUE),
+           mediana = ~median(.x, na.rm = TRUE),
+           MADM = ~madm(.x),
+           IQR = ~IQR(.x, na.rm = TRUE)))
+         )
+# Para clean_iris
+clean_iris %>% summarise(
+  across(where(is.numeric),
+         list(
+           media = ~mean(.x, na.rm = TRUE),
+           desv_tipica = ~sd(.x, na.rm = TRUE),
+           mediana = ~median(.x, na.rm = TRUE),
+           MADM = ~madm(.x),
+           IQR = ~IQR(.x, na.rm = TRUE)))
+         )
+
+# Ahora vamos a comparar los resultados entre ambos dataframes, únicamente
+# para la variable Petal.length:
+# Para dirty_iris:
+dirty_iris %>% summarise(
+           media = mean(Petal.Length, na.rm = TRUE),
+           desv_tipica = sd(Petal.Length, na.rm = TRUE),
+           mediana = median(Petal.Length, na.rm = TRUE),
+           MADM = madm(Petal.Length),
+           IQR = IQR(Petal.Length, na.rm = TRUE))
+         
+# Para clean_iris
+clean_iris %>% summarise(
+           media = mean(Petal.Length, na.rm = TRUE),
+           desv_tipica = sd(Petal.Length, na.rm = TRUE),
+           mediana = median(Petal.Length, na.rm = TRUE),
+           MADM = madm(Petal.Length),
+           IQR = IQR(Petal.Length, na.rm = TRUE))
+         
 
 ```
+--------------------------------------------------------------------------------
+Si analizamos los resultados para la variable 'Petal.length', tenemos que:
 
+En el caso de los datos sucios, la media y la desviación típica, al tratarse de valores altamente dependientes de los datos (sobretodo muy influyentes ante la presencia de datos anómalos), presentan valores diferentes respecto a los datos limpios. Cabe mencionar que la desviación típica pasa de ser 5.77 a 2.87 al limpiar los datos, indicativo de que se ha reducido su variabilidad. 
+
+Por otro lado, los estadísticos de posición como la mediana, el rango intercuartílico y la MADM varían muy poco, pues son mucho más robustos ante la presencia de datos anómalos y outliers. 
+--------------------------------------------------------------------------------
 
 ## Ejercicio 5: Métodos de detección de outliers
 
