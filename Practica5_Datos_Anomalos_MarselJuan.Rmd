@@ -442,17 +442,83 @@ Vamos a comparar ahora los dos métodos de imputación gráficamente eliminando 
   * Recalcula las reglas de identificación de outliers (Ejercicio 6) para la nueva variable `Petal.Length2`.
   
 ```{r Solucion ejercicio 10a, include=TRUE, echo=TRUE, eval=TRUE, results=TRUE}
+# Agrupamos todas las reglas de detección de outliers en una lista:
+metodos <- list(
+  sigma10 = reglasigma,
+  hampel10 = reglahampel,
+  boxplot10 = reglaboxplot,
+  percentil10 = reglapercentil
+)
 
+# Y usamos mutate y across para aplicar los métodos sobre estos; 
+# lo aplicaremos sobre el dataframe de valores sucios (dirty)
+dirty_iris <- dirty_iris %>%
+  mutate(
+    across(
+      Petal.Length2,
+      metodos,
+      .names = "out_{.fn}"
+    )
+  )
+View(dirty_iris)
+num_outliers_sigma <- sum(dirty_iris$out_sigma10, na.rm = TRUE)
+num_outliers_hampel <- sum(dirty_iris$out_hampel10, na.rm = TRUE)
+num_outliers_boxplot <- sum(dirty_iris$out_boxplot10, na.rm = TRUE)
+num_outliers_percent <- sum(dirty_iris$out_percentil10, na.rm = TRUE)
+cat('Número de outliers detectados por método (Petal.Length2):',
+    '\nSigma3:', num_outliers_sigma,
+    '\nHampel:', num_outliers_hampel,
+    '\nBoxplot:', num_outliers_boxplot,
+    '\nPercentil:', num_outliers_percent)
  
 ```
+--------------------------------------------------------------------------------
+Ahora se han detectado más outliers por cada método, pues inevitablemente, al imputar por la mediana los datos faltantes, si esta resulta ser ligeramente superior a lo tolerado por los métodos de detección de outliers empleados, estos serán detectados como tales. Al menos, ya no se cuenta con valores faltantes, y deberemos visualizar como son estos datos outliers.
+--------------------------------------------------------------------------------
 
   * Representa los dos tipos de imputación empleados en un gráfico de dispersión (`Petal.Length1` vs. `Petal.Length2`) eliminando los outliers identificados con la regla `reglapercentil` y poniendo en diferente color los datos originales y los imputados.
 
 ```{r Solucion ejercicio 10b, include=TRUE, echo=TRUE, eval=TRUE, results=TRUE}
+library(dplyr)
+library(ggplot2)
 
+datos_plot <- dirty_iris %>%
+  mutate(
+    imputado = is.na(Petal.Length)
+  ) %>%
+  filter((!reglapercentil(Petal.Length1)) & (!reglapercentil(Petal.Length2)))
 
+ggplot(
+  datos_plot,
+  aes(
+    x = Petal.Length1,
+    y = Petal.Length2,
+    colour = imputado
+  )
+) +
+  geom_jitter(size = 3, alpha = 0.8) +
+  scale_colour_manual(
+    values = c(
+      "FALSE" = "steelblue",
+      "TRUE" = "red"
+    ),
+    labels = c(
+      "FALSE" = "Dato original",
+      "TRUE" = "Dato imputado"
+    )
+  ) +
+  labs(
+    title = "Comparación de métodos de imputación",
+    x = "Petal.Length1",
+    y = "Petal.Length2",
+    colour = ""
+  ) +
+  theme_minimal()
 
 ```
+--------------------------------------------------------------------------------
+A la vista del gráfico se puede observar que la imputación ha sido diferente en ambos casos
+-------------------------------------------------------------------------------
 
 
 
