@@ -227,6 +227,7 @@ En el caso de los datos sucios, la media y la desviación típica, al tratarse d
 Por otro lado, los estadísticos de posición como la mediana, el rango intercuartílico y la MADM varían muy poco, pues son mucho más robustos ante la presencia de datos anómalos y outliers. 
 --------------------------------------------------------------------------------
 
+
 ## Ejercicio 5: Métodos de detección de outliers
 
 Escribe una función que detecte los outliers de un vector $x$ para cada uno de los siguientes métodos de detección de outliers univariantes (todas las funciones tienen que ser robustas a la presencia de valores NA).
@@ -241,16 +242,28 @@ Escribe una función que detecte los outliers de un vector $x$ para cada uno de 
 
 ```{r , include = FALSE}
 # Regla 3 sigma
-
+reglasigma <- function(x) {
+  x[!is.na & (abs(x-mean(x, na.rm = TRUE))>3*sd(x, na.rm = TRUE))]
+}
 
 # Identificador Hampel
-
-
+reglahampel <- function(x) {
+  x[!is.na & (abs(x-median(x, na.rm = TRUE)) > 3*mad(x, na.rm = TRUE))]
+}
 
 # Regla boxplot
+reglaboxplot <- function(x) {
+  IQR <- quantile(x, 0.75, na.rm = TRUE) - quantile(x, 0.25, na.rm = TRUE)
+  up <- quantile(x, 0.75, na.rm = TRUE) + 1.5*IQR
+  low <- quantile(x, 0.25, na.rm = TRUE) - 1.5*IQR
+  x[!is.na(x) & (x < low | x > up)]
+}
 
+# Regla percentiles
+reglapercentil <- function(x){
+  x[!is.na & (x<quantile(x, 0.05, na.rm = TRUE)) | x>quantile(x, 0.95, na.rm = TRUE)]
+}
 
-# Percentiles
 
 ```
 
