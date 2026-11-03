@@ -247,12 +247,12 @@ Escribe una función que detecte los outliers de un vector $x$ para cada uno de 
 
 # Regla 3 sigma
 reglasigma <- function(x) {
-  abs(x-mean(x, na.rm = TRUE))>3*sd(x, na.rm = TRUE)
+  !is.na(x) & abs(x-mean(x, na.rm = TRUE))>3*sd(x, na.rm = TRUE)
 }
 
 # Identificador Hampel
 reglahampel <- function(x) {
-  abs(x-median(x, na.rm = TRUE)) > 3*mad(x, na.rm = TRUE)
+  !is.na(x) & abs(x-median(x, na.rm = TRUE)) > 3*mad(x, na.rm = TRUE)
 }
 
 # Regla boxplot
@@ -260,12 +260,12 @@ reglaboxplot <- function(x) {
   IQR <- quantile(x, 0.75, na.rm = TRUE) - quantile(x, 0.25, na.rm = TRUE)
   up <- quantile(x, 0.75, na.rm = TRUE) + 1.5*IQR
   low <- quantile(x, 0.25, na.rm = TRUE) - 1.5*IQR
-  (x < low | x > up)
+  !is.na(x) & (x < low | x > up)
 }
 
 # Regla percentiles
 reglapercentil <- function(x){
-  (x<quantile(x, 0.05, na.rm = TRUE)) | x>quantile(x, 0.95, na.rm = TRUE)
+  !is.na(x) & (x<quantile(x, 0.05, na.rm = TRUE)) | x>quantile(x, 0.95, na.rm = TRUE)
 }
 ```
 
@@ -278,10 +278,10 @@ Nota: podría extenderse la aplicación a todas las variables numéricas usando 
 ```{r Solucion ejercicio 6, include=TRUE, echo=TRUE, eval=TRUE, results=TRUE}
 # Agrupamos todas las reglas de detección de outliers en una lista:
 metodos <- list(
-  sigma = \(x) x %in% reglasigma(x),
-  hampel = \(x) x %in% reglahampel(x),
-  boxplot = \(x) x %in% reglaboxplot(x),
-  percentil = \(x) x %in% reglapercentil(x)
+  sigma = reglasigma,
+  hampel = reglahampel,
+  boxplot = reglaboxplot,
+  percentil = reglapercentil
 )
 
 # Y usamos mutate y across para aplicar los métodos sobre estos; 
@@ -297,10 +297,20 @@ dirty_iris <- dirty_iris %>%
 
 head(dirty_iris, 6)
 
+clean_iris <- clean_iris %>%
+  mutate(
+    across(
+      Petal.Length,
+      metodos,
+      .names = "out_{.fn}"
+    )
+  )
+dirty_iris$Petal.Length[dirty_iris$out_hampel]
 ```
 --------------------------------------------------------------------------------
 La razón por la que se ha aplicado sobre los datos brutos (dirty_iris) es por que la obtención de clean_data se ha basado principalmente en eliminar todos aquellos datos especiales, con lo cual se han perdido muchas observaciones del dataframe inicial. A la hora de hacer procesados posteriores de los datos, el tamaño de la muestra es muy importante para poder contar con estadísticos de mayor significancia. Por esta razón, durante el análisis exploratorio inicial, es necesario estudiar cada uno de los datos anómalos para tomar decisiones respecto a qué hacer con ellos, y evaluarlos. En definitiva, se trata de una forma menos agresiva de abordar la presencia de inconsistencias
 -------------------------------------------------------------------------------
+
 
 ## Ejercicio 7: Comparativa de los métodos de detección de outliers
 
@@ -310,8 +320,36 @@ En los métodos de detección de outliers analizados, examina los resultados com
   * Los valores etiquetados como outliers (ordenados de menor a mayor).
 
 ```{r Solucion ejercicio 7, include=TRUE, echo=TRUE, eval=TRUE, results=TRUE}
+num_outliers_sigma <- sum(dirty_iris$out_sigma, na.rm = TRUE)
+num_outliers_hampel <- sum(dirty_iris$out_hampel, na.rm = TRUE)
+num_outliers_boxplot <- sum(dirty_iris$out_boxplot, na.rm = TRUE)
+num_outliers_percent <- sum(dirty_iris$out_percentil, na.rm = TRUE)
+cat('Número de outliers detectados por método (dirty_iris):',
+    '\nSigma3:', num_outliers_sigma,
+    '\nHampel:', num_outliers_hampel,
+    '\nBoxplot:', num_outliers_boxplot,
+    '\nPercentil:', num_outliers_percent)
 
+# Ahora vamos a hallar los valores etiquetados como outliers, de menor a mayor: 
+View(dirty_iris)
+
+# Comprobación para contrastar los resultados con el dataframe de datos clean:
+num_outliers_sigma <- sum(clean_iris$out_sigma, na.rm = TRUE)
+num_outliers_hampel <- sum(clean_iris$out_hampel, na.rm = TRUE)
+num_outliers_boxplot <- sum(clean_iris$out_boxplot, na.rm = TRUE)
+num_outliers_percent <- sum(clean_iris$out_percentil, na.rm =TRUE)
+cat('\nNúmero de outliers detectados por método (clean_iris):',
+    '\nSigma3:', num_outliers_sigma,
+    '\nHampel:', num_outliers_hampel,
+    '\nBoxplot:', num_outliers_boxplot,
+    '\nPercentil:', num_outliers_percent)
 ```
+--------------------------------------------------------------------------------
+A la vista de los resultados, se han detectado 2 outliers con el método sigma3, 3 con los métodos hampel y boxplot, y con el método percentil aparecen 11. Si aplicamos estos mismos métodos sobre el dataset de datos limpios, el número de outliers en todos ellos es el mismo, y es de 0. Por esta razón se ha aplicado desde un principio el análisis de datos outliers al dataframe de dirty_iris. 
+
+Si ordenamos de menor a mayor y observamos cuáles son los outliers detectados, el método sigma3 ha detectado los valores de 63 y 23 como outliers, mientras que el método hampel y boxplot incluyen el valor 14 como outlier. El más restrictivo en la detección de outliers ha sido el método del percentil, tomando desde 6.6 hasta 63 como outliers superiores, y desde 0.82 hasta 1.2 como outliers inferiores. 
+--------------------------------------------------------------------------------
+
 
 ## Ejercicio 8: Representación gráfica
 
@@ -320,7 +358,52 @@ Representa gráficamente los datos de `Petal.Length` (distribución de puntos en
 Nota: usa en `geom_point` con la opción `position='jitter'` para mejorar la legibilidad del gráfico.
 
 ```{r Solucion ejercicio 8, include=TRUE, echo=TRUE, eval=TRUE, results=TRUE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
 
+datos_plot <- dirty_iris %>%
+  select(
+    Petal.Length,
+    out_sigma,
+    out_hampel,
+    out_boxplot,
+    out_percentil
+  ) %>%
+  pivot_longer(
+    cols = starts_with("out_"),
+    names_to = "metodo",
+    values_to = "outlier"
+  ) %>%
+  mutate(
+    clasificacion = ifelse(outlier, "Outlier", "Típico")
+  )
+
+ggplot(
+  datos_plot,
+  aes(
+    x = metodo,
+    y = Petal.Length,
+    colour = clasificacion
+  )
+) +
+  geom_point(
+    position = position_jitter(width = 0.2),
+    alpha = 0.7
+  ) +
+  scale_colour_manual(
+    values = c(
+      "Típico" = "steelblue",
+      "Outlier" = "red"
+    )
+  ) +
+  labs(
+    title = "Detección de outliers en Petal.Length",
+    x = "Método",
+    y = "Petal.Length",
+    colour = "Clasificación"
+  ) +
+  theme_minimal()
 ```
 
 # Imputación de datos
