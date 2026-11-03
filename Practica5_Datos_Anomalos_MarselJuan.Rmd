@@ -364,33 +364,20 @@ library(ggplot2)
 
 datos_plot <- dirty_iris %>%
   select(
-    Petal.Length,
-    out_sigma,
-    out_hampel,
-    out_boxplot,
-    out_percentil
-  ) %>%
+    Petal.Length,out_sigma,out_hampel,out_boxplot,out_percentil) %>%
+  # convertimos en un dataframe tidy:
   pivot_longer(
     cols = starts_with("out_"),
     names_to = "metodo",
-    values_to = "outlier"
-  ) %>%
+    values_to = "outlier") %>%
   mutate(
     clasificacion = ifelse(outlier, "Outlier", "Típico")
   )
 
 ggplot(
   datos_plot,
-  aes(
-    x = metodo,
-    y = Petal.Length,
-    colour = clasificacion
-  )
-) +
-  geom_point(
-    position = position_jitter(width = 0.2),
-    alpha = 0.7
-  ) +
+  aes(x = metodo,y = Petal.Length,colour = clasificacion)) +
+  geom_point(position = position_jitter(width = 0.2),alpha = 0.7) +
   scale_colour_manual(
     values = c(
       "Típico" = "steelblue",
